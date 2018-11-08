@@ -26,6 +26,11 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     @Autowired
     private INodeService nodeService;
 
+    /**
+     * 权限控制
+     * @param http 请求http
+     * @throws Exception Exception
+     */
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http
@@ -42,6 +47,10 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         http.csrf().disable();
     }
 
+    /**
+     * 传入用户名，效验是否可用用户，是的给超级管理员角色
+     * @return
+     */
     @Bean
     public UserDetailsService getUserDetailsService() {
         return username -> {
@@ -54,6 +63,10 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         };
     }
 
+    /**
+     * 重写效验密码是否正确
+     * @return
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new PasswordEncoder() {

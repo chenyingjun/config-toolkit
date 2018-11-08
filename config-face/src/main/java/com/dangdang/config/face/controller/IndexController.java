@@ -49,6 +49,9 @@ public class IndexController {
 
     private static final String ZIP = ".zip";
     private static final String PROPERTIES = ".properties";
+    /**
+     * 表示为配置项注释信息，加在版本号后面
+     */
     private static final String COMMENT_SUFFIX = "$";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexController.class);
@@ -58,15 +61,20 @@ public class IndexController {
         return "redirect:/version";
     }
 
+    /**
+     * 首页界面
+     */
     @GetMapping(value = {"/version", "/version/{version:.+}"})
     public ModelAndView rootNode(@PathVariable(required = false) String version) {
         final String root = getRoot();
 
+        //过滤掉配置项的注释信息，返回所有版本信息
         final List<String> versions = nodeService.listChildren(root)
                 .stream().filter(e -> !e.endsWith(COMMENT_SUFFIX))
                 .sorted(Comparator.comparing(String::toString).reversed())
                 .collect(Collectors.toList());
 
+        //如果没有指定要查询的版本信息，则返回列表的第一个版本信息为当前显示的版本信息
         final String theVersion = version != null ? version : Iterables.getFirst(versions, null);
 
         final ModelAndView mv = new ModelAndView("index");
@@ -74,6 +82,7 @@ public class IndexController {
         mv.addObject("versions", versions);
         mv.addObject("theVersion", theVersion);
 
+        //查询的版本在所有版本信息中，返回此版本的分组信息
         if (Iterables.contains(versions, theVersion)) {
             final List<String> groups = nodeService.listChildren(makePaths(root, theVersion))
                     .stream().sorted().collect(Collectors.toList());
@@ -83,6 +92,9 @@ public class IndexController {
         return mv;
     }
 
+    /**
+     * 查询对应版本下分组的配置项信息
+     */
     @GetMapping(value = "/group/{version}/{group:.+}")
     public ModelAndView groupData(@PathVariable String version, @PathVariable String group) {
         final List<PropertyItemVO> items = getItems(getRoot(), version, group);
@@ -94,11 +106,17 @@ public class IndexController {
         return mv;
     }
 
+    /**
+     * 组装成key、value、comment信息对应
+     */
     private List<PropertyItemVO> getItems(String root, String version, String group) {
         List<PropertyItemVO> items = Lists.newArrayList();
 
+        //key、value信息
         final List<PropertyItem> props = nodeService.findProperties(makePaths(root, version, group));
+        //key、comment信息
         final List<PropertyItem> itemComment = nodeService.findProperties(makePaths(root, version + COMMENT_SUFFIX, group));
+        //组装成key、value、comment信息对应
         if (props != null) {
             Map<String, String> comments = Maps.newHashMap();
             if (itemComment != null) {
@@ -118,6 +136,9 @@ public class IndexController {
         return items;
     }
 
+    /**
+     * 创建分组
+     */
     @PostMapping(value = "/group/{version:.+}")
     public ModelAndView createGroup(@PathVariable String version, String newGroup) {
         version = StringUtils.trim(version);
@@ -132,12 +153,16 @@ public class IndexController {
         return new ModelAndView("redirect:/version/" + version);
     }
 
+    /**
+     * 创建版本
+     */
     @PostMapping(value = "/version/{version:.+}")
     public @ResponseBody
     CommonResponse<Object> createVersion(@PathVariable String version, String fromVersion) {
         LOGGER.debug("Create version {} from {}", version, fromVersion);
 
         version = StringUtils.trim(version);
+        //会从此节拷贝配置项信息
         fromVersion = StringUtils.trim(fromVersion);
 
         if (!Strings.isNullOrEmpty(version)) {
@@ -161,6 +186,9 @@ public class IndexController {
         return new CommonResponse<>(false, null, "Invalid Args");
     }
 
+    /**
+     * 把sourceVersionPath节点的子节点信息拷贝至destinationVersionPath
+     */
     private void cloneVersion(String sourceVersionPath, String destinationVersionPath) {
         List<String> sourceGroups = nodeService.listChildren(sourceVersionPath);
         if (sourceGroups != null) {
@@ -179,6 +207,9 @@ public class IndexController {
         }
     }
 
+    /**
+     * 新增配置项信息
+     */
     @PostMapping(value = "/prop")
     public @ResponseBody
     CommonResponse<Object> createProp(String version, String group, String key, String value, String comment) {
@@ -209,6 +240,9 @@ public class IndexController {
 
     }
 
+    /**
+     * 更新配置项信息
+     */
     @PutMapping(value = "/prop")
     public @ResponseBody
     CommonResponse<Object> updateProp(String version, String group, String key, String value, String comment) {
@@ -234,6 +268,9 @@ public class IndexController {
 
     }
 
+    /**
+     * 删除配置项信息
+     */
     @DeleteMapping(value = "/prop/{version}/{group}/{key:.+}")
     public @ResponseBody
     CommonResponse<Object> deleteProp(@PathVariable String version, @PathVariable String group, @PathVariable String key) {
@@ -249,11 +286,17 @@ public class IndexController {
 
     }
 
+    /**
+     * 获取根目录
+     */
     private String getRoot() {
         final UserDetails principal = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return principal.getUsername();
     }
 
+    /**
+     * 删除对应分组
+     */
     @DeleteMapping(value = "/group/{version}/{group:.+}")
     public @ResponseBody
     CommonResponse<Object> deleteGroup(@PathVariable String version, @PathVariable String group) {
@@ -267,6 +310,9 @@ public class IndexController {
         return new CommonResponse<>(true, null, null);
     }
 
+    /**
+     * 拼接路径
+     */
     private String makePaths(String root, String first, String... others) {
         String path = ZKPaths.makePath(root, first);
         if (others != null) {
@@ -330,6 +376,9 @@ public class IndexController {
         }
     }
 
+    /**
+     * 拼接配置项信息成list
+     */
     private List<String> formatPropertyLines(String root, String version, String group, List<PropertyItemVO> items) {
         List<String> lines = Lists.newArrayList();
         lines.add(String.format("# Export from zookeeper configuration group: [%s] - [%s] - [%s].", root,
@@ -344,6 +393,9 @@ public class IndexController {
         return lines;
     }
 
+    /**
+     * 导入
+     */
     @PostMapping("/import/{version:.+}")
     public ModelAndView importData(@PathVariable String version, MultipartFile file){
         final String fileName = file.getOriginalFilename();
@@ -368,6 +420,9 @@ public class IndexController {
         return new ModelAndView("redirect:/version/" + version);
     }
 
+    /**
+     * 保存流中的配置项信息
+     */
     private void saveGroup(@PathVariable String version, String fileName, InputStream in) throws IOException {
         List<PropertyItemVO> items = parseInputFile(in);
         if(!items.isEmpty()) {
@@ -383,10 +438,17 @@ public class IndexController {
     }
 
 
+    /**
+     * 以=号隔除至两段
+     */
     private Splitter PROPERTY_SPLITTER = Splitter.on('=').limit(2);
 
 
+    /**
+     * 解析流中配置项信息，填充成list
+     */
     private List<PropertyItemVO> parseInputFile(InputStream inputstream) throws IOException {
+        //获取流中配置项信息
         List<String> lines = IOUtils.readLines(inputstream, Charsets.UTF_8.name());
         List<PropertyItemVO> items = Lists.newArrayList();
         String previousLine = null;
@@ -396,7 +458,9 @@ public class IndexController {
                 continue;
             }
 
+            //排除注释
             if (!line.startsWith("#")) {
+                //以=号隔除至两段
                 Iterable<String> parts = PROPERTY_SPLITTER.split(line);
                 if (Iterables.size(parts) == 2) {
                     PropertyItemVO item = new PropertyItemVO(Iterables.getFirst(parts, null).trim(), Iterables.getLast(parts).trim());

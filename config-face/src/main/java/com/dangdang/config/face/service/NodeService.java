@@ -68,6 +68,11 @@ public class NodeService implements INodeService {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(NodeService.class);
 
+	/**
+	 * 查询对应节点下面的配置项信息
+	 * @param node
+	 * @return
+	 */
 	@Override
 	public List<PropertyItem> findProperties(String node) {
 		LOGGER.debug("Find properties in node: [{}]", node);
@@ -92,6 +97,11 @@ public class NodeService implements INodeService {
 		return properties;
 	}
 
+	/**
+	 * 获取指定节点下面子节点信息
+	 * @param node
+	 * @return
+	 */
 	@Override
 	public List<String> listChildren(String node) {
 		LOGGER.debug("Find children of node: [{}]", node);
@@ -108,19 +118,32 @@ public class NodeService implements INodeService {
 		return children;
 	}
 
+	/**
+	 * 创建节点
+	 * @param node
+	 * @return
+	 */
 	@Override
 	public boolean createProperty(String node) {
 		return createProperty(node, null);
 	}
 
+	/**
+	 * 创建节点
+	 * @param node
+	 * @param value
+	 * @return
+	 */
 	@Override
 	public boolean createProperty(String node, String value) {
 		LOGGER.debug("Create property : [{}] = [{}]", node, value);
 		boolean suc = false;
 		try {
+			//判断节点是否已存在，不存在时才会新建
 			Stat stat = client.checkExists().forPath(node);
 			if (stat == null) {
 				final byte[] data = Strings.isNullOrEmpty(value) ? new byte[]{} : value.getBytes(Charsets.UTF_8);
+				//利用Curator创建zookeeper的节点数据信息，这个会触发zookeeper的watch监听，是实现热加载的重要操作
 				String opResult = client.create().creatingParentsIfNeeded().forPath(node, data);
 				suc = Objects.equal(node, opResult);
 			}
@@ -130,6 +153,9 @@ public class NodeService implements INodeService {
 		return suc;
 	}
 
+	/**
+	 * 更新配置项信息
+	 */
 	@Override
 	public boolean updateProperty(String node, String value) {
 		LOGGER.debug("Update property: [{}] = [{}]", node, value);
@@ -149,6 +175,9 @@ public class NodeService implements INodeService {
 		return suc;
 	}
 
+	/**
+	 * 删除配置项信息
+	 */
 	@Override
 	public void deleteProperty(String node) {
 		LOGGER.debug("Delete property: [{}]", node);
@@ -162,6 +191,9 @@ public class NodeService implements INodeService {
 		}
 	}
 
+	/**
+	 * 获取对应节点下面的数据
+	 */
 	@Override
 	public String getValue(String node) {
 		try {
